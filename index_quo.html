@@ -1,0 +1,246 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+<title>Quotes by Raghav</title>
+
+<link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;500;700&display=swap" rel="stylesheet">
+
+<style>
+
+:root {
+--bg: linear-gradient(-45deg,#f9f9f9,#f0f0f0,#eaeaea,#ffffff);
+--text:#1c1c1c;
+--card-bg:#fff;
+--accent:#333;
+--shadow:rgba(0,0,0,0.08);
+--shadow-hover:rgba(0,0,0,0.12);
+}
+
+[data-theme='dark']{
+--bg:linear-gradient(-45deg,#121212,#1b1b1b,#181818,#0d0d0d);
+--text:#f2f2f2;
+--card-bg:#1e1e1e;
+--accent:#e4e4e4;
+--shadow:rgba(255,255,255,0.08);
+--shadow-hover:rgba(255,255,255,0.12);
+}
+
+body{
+font-family:'Poppins',sans-serif;
+margin:0;
+background:var(--bg);
+background-size:300% 300%;
+animation:gradientShift 15s ease infinite;
+color:var(--text);
+display:flex;
+flex-direction:column;
+align-items:center;
+min-height:100vh;
+}
+
+@keyframes gradientShift{
+0%{background-position:0% 50%;}
+50%{background-position:100% 50%;}
+100%{background-position:0% 50%;}
+}
+
+header{
+text-align:center;
+padding:2.5rem 1rem 1rem;
+}
+
+h1{
+font-weight:700;
+font-size:2rem;
+margin-bottom:0.5rem;
+}
+
+.subtitle{
+font-weight:300;
+font-size:0.95rem;
+color:var(--accent);
+margin-bottom:1rem;
+}
+
+.theme-toggle{
+background:var(--card-bg);
+border:none;
+border-radius:50px;
+box-shadow:0 2px 8px var(--shadow);
+padding:0.5rem 1rem;
+cursor:pointer;
+font-size:0.9rem;
+}
+
+main{
+display:grid;
+grid-template-columns:repeat(auto-fit,minmax(280px,1fr));
+gap:1.2rem;
+width:90%;
+max-width:1000px;
+padding:1.5rem 0 3rem;
+}
+
+.quote-card{
+background:var(--card-bg);
+border-radius:12px;
+padding:1.4rem;
+box-shadow:0 4px 15px var(--shadow);
+transition:transform .3s,box-shadow .3s;
+opacity:0;
+transform:translateY(30px);
+}
+
+.quote-card.show{
+opacity:1;
+transform:translateY(0);
+}
+
+.quote-card:hover{
+transform:translateY(-4px);
+box-shadow:0 6px 20px var(--shadow-hover);
+}
+
+.quote{
+font-size:1rem;
+line-height:1.5;
+color:var(--accent);
+}
+
+footer{
+text-align:center;
+font-size:0.85rem;
+color:#888;
+margin-bottom:1.5rem;
+}
+
+</style>
+</head>
+
+<body>
+
+<header>
+<h1>RANDOM THOUGHTS</h1>
+<p class="subtitle">Introspective reflections on growth, healing, and honesty</p>
+<button class="theme-toggle" id="themeBtn">🌙 Dark Mode</button>
+</header>
+
+<main id="quotes">
+<div style="text-align:center">Loading quotes...</div>
+</main>
+
+<footer>
+© <span id="year"></span> By Satyamd
+</footer>
+
+<script>
+
+/* GOOGLE DOC SETTINGS */
+
+const DOC_ID = "1LHDYzFACDK_I90zWrZkONPYiPzjeiUCRKUA47LcEaqU";
+
+const DOC_URL =
+`https://corsproxy.io/?https://docs.google.com/document/d/${DOC_ID}/export?format=txt`;
+
+
+/* LOAD QUOTES */
+
+async function loadQuotes(){
+
+const container = document.getElementById("quotes");
+
+container.innerHTML = "Loading quotes...";
+
+try{
+
+const res = await fetch(DOC_URL);
+const text = await res.text();
+
+const quotes = text
+.split("\n")
+.map(q => q.trim())
+.filter(q => q.length > 5);
+
+container.innerHTML = "";
+
+quotes.forEach(q => {
+
+const card = document.createElement("div");
+card.className = "quote-card";
+
+card.innerHTML = `<p class="quote">“${q}”</p>`;
+
+container.appendChild(card);
+
+});
+
+observeCards();
+
+}catch(err){
+
+container.innerHTML="⚠️ Could not load quotes.";
+console.error(err);
+
+}
+
+}
+
+
+/* CARD ANIMATION */
+
+function observeCards(){
+
+const observer=new IntersectionObserver((entries)=>{
+entries.forEach(entry=>{
+if(entry.isIntersecting)
+entry.target.classList.add("show");
+});
+},{threshold:0.1});
+
+document.querySelectorAll(".quote-card")
+.forEach(card=>observer.observe(card));
+
+}
+
+
+/* AUTO REFRESH */
+
+loadQuotes();
+
+/* refresh every 3 minutes */
+
+setInterval(loadQuotes,180000);
+
+
+/* DARK MODE */
+
+const themeBtn=document.getElementById("themeBtn");
+
+const prefersDark =
+window.matchMedia('(prefers-color-scheme: dark)').matches;
+
+if(prefersDark)
+document.body.dataset.theme="dark";
+
+themeBtn.onclick=()=>{
+
+const current =
+document.body.dataset.theme==="dark"?"light":"dark";
+
+document.body.dataset.theme=current;
+
+themeBtn.textContent =
+current==="dark"?"☀️ Light Mode":"🌙 Dark Mode";
+
+};
+
+document.getElementById("year")
+.textContent=new Date().getFullYear();
+
+</script>
+
+</body>
+</html>
