@@ -1,0 +1,664 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="night">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Thoughts — Raghav</title>
+<link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300;0,400;0,600;1,300;1,400&family=Lato:wght@300;400&display=swap" rel="stylesheet">
+<style>
+
+:root { --ease: cubic-bezier(0.4,0,0.2,1); --t: 0.5s; }
+
+[data-theme="night"] {
+  --bg-a:#0d0f14; --bg-b:#111520; --bg-c:#161a28;
+  --orb1:rgba(38,50,90,0.55); --orb2:rgba(22,28,55,0.45); --orb3:rgba(55,35,70,0.3);
+  --surface:rgba(255,255,255,0.035); --surface-h:rgba(255,255,255,0.058);
+  --border:rgba(255,255,255,0.07); --border-h:rgba(255,255,255,0.14);
+  --txt-hi:#e8e4dc; --txt-md:#9a97a0; --txt-lo:#5a5765;
+  --accent:#8ea4c8; --copy-ok:#7ab89e; --shadow:rgba(0,0,0,0.55);
+}
+[data-theme="light"] {
+  --bg-a:#f5f2ec; --bg-b:#ede9e0; --bg-c:#e8e4d8;
+  --orb1:rgba(180,175,160,0.4); --orb2:rgba(160,155,175,0.3); --orb3:rgba(175,160,190,0.25);
+  --surface:rgba(255,255,255,0.55); --surface-h:rgba(255,255,255,0.78);
+  --border:rgba(0,0,0,0.07); --border-h:rgba(0,0,0,0.14);
+  --txt-hi:#1e1b18; --txt-md:#6b6760; --txt-lo:#aaa79f;
+  --accent:#6b7fa0; --copy-ok:#4d9070; --shadow:rgba(0,0,0,0.12);
+}
+[data-theme="violet"] {
+  --bg-a:#0f0d18; --bg-b:#131020; --bg-c:#181428;
+  --orb1:rgba(70,40,110,0.55); --orb2:rgba(40,30,80,0.5); --orb3:rgba(90,50,120,0.35);
+  --surface:rgba(255,255,255,0.04); --surface-h:rgba(255,255,255,0.065);
+  --border:rgba(200,180,255,0.08); --border-h:rgba(200,180,255,0.16);
+  --txt-hi:#ece8f8; --txt-md:#9890b8; --txt-lo:#5a5472;
+  --accent:#b09cdc; --copy-ok:#80b89a; --shadow:rgba(0,0,0,0.6);
+}
+
+*, *::before, *::after { box-sizing:border-box; margin:0; padding:0; }
+html { scroll-behavior:smooth; }
+
+body {
+  font-family:'Lato',sans-serif;
+  font-weight:300;
+  background:var(--bg-a);
+  color:var(--txt-hi);
+  min-height:100vh;
+  overflow-x:hidden;
+  transition:background var(--t) var(--ease), color var(--t) var(--ease);
+}
+
+#canvas-bg { position:fixed; inset:0; z-index:0; pointer-events:none; }
+
+.grain {
+  position:fixed; inset:0; z-index:1; pointer-events:none;
+  background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='200' height='200'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.75' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='200' height='200' filter='url(%23n)' opacity='0.035'/%3E%3C/svg%3E");
+  background-repeat:repeat;
+  mix-blend-mode:overlay;
+}
+
+#page {
+  position:relative; z-index:2;
+  display:flex; flex-direction:column; align-items:center;
+  min-height:100vh;
+  padding:0 1.5rem 6rem;
+}
+
+header {
+  width:100%; max-width:660px;
+  padding:5rem 0 3.5rem;
+  text-align:center;
+}
+
+.header-eyebrow {
+  display:block;
+  font-size:0.67rem; font-weight:400;
+  letter-spacing:0.22em; text-transform:uppercase;
+  color:var(--txt-lo); margin-bottom:1.4rem;
+  transition:color var(--t);
+}
+
+h1 {
+  font-family:'Cormorant Garamond',serif;
+  font-weight:300; font-style:italic;
+  font-size:clamp(2.6rem,7vw,4rem);
+  line-height:1.1; letter-spacing:-0.01em;
+  color:var(--txt-hi); transition:color var(--t);
+}
+
+.rule {
+  width:34px; height:1px;
+  background:var(--border-h);
+  margin:1.8rem auto;
+  transition:background var(--t);
+}
+
+.header-sub {
+  font-size:0.82rem; line-height:1.8;
+  color:var(--txt-md); font-style:italic;
+  transition:color var(--t);
+}
+
+.controls {
+  width:100%; max-width:660px;
+  margin-bottom:2.5rem;
+}
+
+.search-wrap { position:relative; }
+
+.search-icon {
+  position:absolute; left:1rem; top:50%;
+  transform:translateY(-50%);
+  width:14px; height:14px;
+  color:var(--txt-lo); pointer-events:none;
+  transition:color var(--t);
+}
+
+#searchInput {
+  width:100%;
+  background:var(--surface);
+  border:1px solid var(--border);
+  border-radius:8px;
+  padding:0.75rem 1rem 0.75rem 2.6rem;
+  font-family:'Lato',sans-serif;
+  font-size:0.82rem; font-weight:300;
+  color:var(--txt-hi); outline:none;
+  backdrop-filter:blur(12px);
+  -webkit-backdrop-filter:blur(12px);
+  transition:border-color var(--t), background var(--t), color var(--t), box-shadow 0.25s;
+}
+#searchInput::placeholder { color:var(--txt-lo); }
+#searchInput:focus {
+  border-color:var(--border-h);
+  box-shadow:0 0 0 3px rgba(142,164,200,0.08);
+}
+
+.meta-row {
+  display:flex; justify-content:space-between; align-items:center;
+  width:100%; max-width:660px;
+  margin-bottom:2rem;
+  font-size:0.72rem; color:var(--txt-lo);
+  transition:color var(--t);
+}
+
+#loader {
+  display:none; flex-direction:column; align-items:center;
+  gap:1.2rem; padding:6rem 0;
+  width:100%; max-width:660px;
+}
+#loader.active { display:flex; }
+
+.loader-line {
+  width:120px; height:1px;
+  background:var(--border);
+  position:relative; overflow:hidden; border-radius:2px;
+}
+.loader-line::after {
+  content:''; position:absolute;
+  left:-40%; top:0; bottom:0; width:40%;
+  background:var(--accent);
+  animation:loadSlide 1.4s ease-in-out infinite;
+  transition:background var(--t);
+}
+@keyframes loadSlide { 0%{left:-40%} 100%{left:140%} }
+
+.loader-text {
+  font-size:0.72rem; letter-spacing:0.14em;
+  text-transform:uppercase; color:var(--txt-lo);
+  transition:color var(--t);
+}
+
+#error-box {
+  display:none;
+  width:100%; max-width:660px;
+  padding:3rem; text-align:center;
+  background:var(--surface);
+  border:1px solid var(--border);
+  border-radius:12px;
+  backdrop-filter:blur(16px);
+  -webkit-backdrop-filter:blur(16px);
+}
+#error-box.active { display:block; }
+
+.error-title {
+  font-family:'Cormorant Garamond',serif;
+  font-size:1.3rem; font-style:italic;
+  color:var(--txt-hi); margin-bottom:0.75rem;
+}
+
+.error-sub {
+  font-size:0.78rem; color:var(--txt-md);
+  margin-bottom:1.5rem; line-height:1.7;
+}
+
+.retry-btn {
+  background:none;
+  border:1px solid var(--border-h);
+  border-radius:7px;
+  padding:0.6rem 1.4rem;
+  color:var(--txt-md);
+  font-family:'Lato',sans-serif;
+  font-size:0.78rem; font-weight:300;
+  cursor:pointer;
+  transition:all 0.3s;
+}
+.retry-btn:hover { border-color:var(--accent); color:var(--accent); }
+
+#quotes {
+  width:100%; max-width:660px;
+  display:flex; flex-direction:column;
+  gap:1.1rem;
+}
+
+.no-results {
+  text-align:center; padding:4rem 0;
+  color:var(--txt-lo); font-size:0.82rem; font-style:italic;
+}
+
+.quote-card {
+  position:relative;
+  background:var(--surface);
+  border:1px solid var(--border);
+  border-radius:12px;
+  padding:2rem 2.2rem 1.5rem;
+  backdrop-filter:blur(20px);
+  -webkit-backdrop-filter:blur(20px);
+  box-shadow:0 2px 24px var(--shadow);
+  opacity:0;
+  transform:translateY(20px);
+  transition:
+    opacity 0.65s var(--ease),
+    transform 0.65s var(--ease),
+    background var(--t),
+    border-color 0.3s,
+    box-shadow 0.3s;
+  will-change:transform,opacity;
+}
+
+.quote-card.visible { opacity:1; transform:translateY(0); }
+
+.quote-card:hover {
+  background:var(--surface-h);
+  border-color:var(--border-h);
+  box-shadow:0 8px 40px var(--shadow);
+  transform:translateY(-2px);
+}
+
+.quote-card:hover .card-actions { opacity:1; }
+
+.quote-card::before {
+  content:'\201C';
+  position:absolute; top:1rem; left:1.6rem;
+  font-family:'Cormorant Garamond',serif;
+  font-size:3.5rem; line-height:1;
+  color:var(--accent); opacity:0.18;
+  pointer-events:none; user-select:none;
+  transition:color var(--t);
+}
+
+.quote-text {
+  font-family:'Cormorant Garamond',serif;
+  font-size:clamp(1.05rem,2.4vw,1.18rem);
+  font-weight:400; line-height:1.82;
+  color:var(--txt-hi);
+  padding-top:0.3rem;
+  transition:color var(--t);
+}
+
+.card-actions {
+  display:flex; gap:0.5rem;
+  margin-top:1.2rem; padding-top:1rem;
+  border-top:1px solid var(--border);
+  opacity:0;
+  transition:opacity 0.3s var(--ease), border-color var(--t);
+}
+
+.copy-btn {
+  display:inline-flex; align-items:center; gap:0.4rem;
+  background:none;
+  border:1px solid var(--border);
+  border-radius:6px;
+  padding:0.38rem 0.85rem;
+  color:var(--txt-md);
+  font-family:'Lato',sans-serif;
+  font-size:0.7rem; font-weight:300;
+  letter-spacing:0.05em;
+  cursor:pointer;
+  transition:all 0.25s;
+}
+.copy-btn svg { width:11px; height:11px; flex-shrink:0; }
+.copy-btn:hover { border-color:var(--accent); color:var(--accent); }
+.copy-btn.ok { border-color:var(--copy-ok); color:var(--copy-ok); }
+
+#toast {
+  position:fixed; bottom:1.8rem; left:50%;
+  transform:translateX(-50%) translateY(8px);
+  background:var(--bg-c);
+  border:1px solid var(--border-h);
+  border-radius:8px;
+  padding:0.55rem 1.2rem;
+  font-size:0.73rem; color:var(--txt-md);
+  backdrop-filter:blur(16px);
+  opacity:0; pointer-events:none;
+  transition:opacity 0.3s, transform 0.3s;
+  z-index:100; white-space:nowrap;
+}
+#toast.show { opacity:1; transform:translateX(-50%) translateY(0); }
+
+footer {
+  width:100%; max-width:660px;
+  margin-top:5rem; padding-top:2rem;
+  border-top:1px solid var(--border);
+  display:flex; flex-direction:column; align-items:center;
+  gap:1.8rem;
+  transition:border-color var(--t);
+}
+
+.footer-brand {
+  font-family:'Cormorant Garamond',serif;
+  font-style:italic; font-size:1rem;
+  color:var(--txt-lo); transition:color var(--t);
+}
+
+.theme-label {
+  font-size:0.67rem; letter-spacing:0.18em;
+  text-transform:uppercase; color:var(--txt-lo);
+  text-align:center; margin-bottom:0.65rem;
+  transition:color var(--t);
+}
+
+.theme-pills { display:flex; gap:0.5rem; flex-wrap:wrap; justify-content:center; }
+
+.theme-pill {
+  display:flex; align-items:center; gap:0.45rem;
+  padding:0.42rem 1rem;
+  border-radius:100px;
+  border:1px solid var(--border);
+  background:none;
+  color:var(--txt-lo);
+  font-family:'Lato',sans-serif;
+  font-size:0.72rem; font-weight:400;
+  cursor:pointer;
+  transition:all 0.3s var(--ease);
+}
+.theme-pill:hover { border-color:var(--border-h); color:var(--txt-md); }
+.theme-pill.active { border-color:var(--accent); color:var(--accent); }
+
+.swatch {
+  width:7px; height:7px;
+  border-radius:50%; flex-shrink:0;
+}
+.sw-night  { background:#4a6090; }
+.sw-light  { background:#9090a8; }
+.sw-violet { background:#9070c8; }
+
+.footer-meta {
+  font-size:0.7rem; color:var(--txt-lo);
+  text-align:center; line-height:1.9;
+  transition:color var(--t);
+}
+
+::-webkit-scrollbar { width:4px; }
+::-webkit-scrollbar-track { background:transparent; }
+::-webkit-scrollbar-thumb { background:var(--border-h); border-radius:10px; }
+
+@media (max-width:540px) {
+  header { padding:3.5rem 0 2.5rem; }
+  .quote-card { padding:1.5rem 1.4rem 1.2rem; }
+  .quote-card::before { left:1.2rem; top:0.8rem; font-size:2.8rem; }
+  footer { margin-top:4rem; }
+}
+
+</style>
+</head>
+<body>
+
+<canvas id="canvas-bg"></canvas>
+<div class="grain"></div>
+
+<div id="page">
+
+  <header>
+    <span class="header-eyebrow">Raghav</span>
+    <h1>Random Thoughts</h1>
+    <div class="rule"></div>
+    <p class="header-sub">Introspective reflections on growth, healing, and honesty</p>
+  </header>
+
+  <div class="controls">
+    <div class="search-wrap">
+      <svg class="search-icon" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+        <circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/>
+      </svg>
+      <input type="text" id="searchInput" placeholder="Search thoughts...">
+    </div>
+  </div>
+
+  <div class="meta-row">
+    <span id="countDisplay"></span>
+    <span id="syncStatus"></span>
+  </div>
+
+  <div id="loader">
+    <div class="loader-line"></div>
+    <p class="loader-text">Loading thoughts</p>
+  </div>
+
+  <div id="error-box">
+    <p class="error-title">Could not reach the document</p>
+    <p class="error-sub">The fetch failed after several attempts.<br>Check your connection or try again.</p>
+    <button class="retry-btn" id="retryBtn">Try again</button>
+  </div>
+
+  <main id="quotes"></main>
+
+  <footer>
+    <p class="footer-brand">by Satyamd</p>
+
+    <div>
+      <p class="theme-label">Appearance</p>
+      <div class="theme-pills">
+        <button class="theme-pill" data-theme="night">
+          <span class="swatch sw-night"></span>Deep Night
+        </button>
+        <button class="theme-pill" data-theme="light">
+          <span class="swatch sw-light"></span>Soft Light
+        </button>
+        <button class="theme-pill" data-theme="violet">
+          <span class="swatch sw-violet"></span>Calm Violet
+        </button>
+      </div>
+    </div>
+
+    <p class="footer-meta">
+      Synced from Google Docs &nbsp;&middot;&nbsp; refreshes every 3 min<br>
+      &copy; <span id="year"></span>
+    </p>
+  </footer>
+
+</div>
+
+<div id="toast"></div>
+
+<script>
+/* ─── CANVAS BACKGROUND ─── */
+(function(){
+  const cv  = document.getElementById('canvas-bg');
+  const ctx = cv.getContext('2d');
+  let W, H, t = 0;
+  const mouse = { x:0.5, y:0.5 };
+
+  const ORBS = [
+    { xr:0.15, yr:0.22, r:0.5,  key:'--orb1' },
+    { xr:0.80, yr:0.70, r:0.42, key:'--orb2' },
+    { xr:0.50, yr:0.50, r:0.35, key:'--orb3' },
+  ];
+
+  function resize(){ W = cv.width = window.innerWidth; H = cv.height = window.innerHeight; }
+
+  function cssVar(k){ return getComputedStyle(document.documentElement).getPropertyValue(k).trim(); }
+
+  function draw(){
+    ctx.clearRect(0,0,W,H);
+    const g = ctx.createLinearGradient(0,0,W,H);
+    g.addColorStop(0, cssVar('--bg-a'));
+    g.addColorStop(1, cssVar('--bg-b'));
+    ctx.fillStyle = g; ctx.fillRect(0,0,W,H);
+
+    ORBS.forEach((orb,i)=>{
+      const phase = t * (i%2===0 ? 0.0008 : -0.0005);
+      const mx = (mouse.x-0.5)*0.04*(i+1);
+      const my = (mouse.y-0.5)*0.04*(i+1);
+      const cx = (orb.xr + Math.sin(phase+i*1.3)*0.07 + mx)*W;
+      const cy = (orb.yr + Math.cos(phase+i*1.1)*0.07 + my)*H;
+      const r  = orb.r * Math.min(W,H);
+      const og = ctx.createRadialGradient(cx,cy,0,cx,cy,r);
+      og.addColorStop(0, cssVar(orb.key));
+      og.addColorStop(1,'transparent');
+      ctx.fillStyle = og;
+      ctx.beginPath(); ctx.arc(cx,cy,r,0,Math.PI*2); ctx.fill();
+    });
+    t++;
+    requestAnimationFrame(draw);
+  }
+
+  window.addEventListener('resize', resize);
+  window.addEventListener('mousemove', e=>{
+    mouse.x = e.clientX/window.innerWidth;
+    mouse.y = e.clientY/window.innerHeight;
+  });
+  window.addEventListener('touchmove', e=>{
+    if(e.touches[0]){
+      mouse.x = e.touches[0].clientX/window.innerWidth;
+      mouse.y = e.touches[0].clientY/window.innerHeight;
+    }
+  },{ passive:true });
+
+  resize(); draw();
+})();
+
+/* ─── FETCH WITH FALLBACK PROXIES ─── */
+const DOC_ID   = "1LHDYzFACDK_I90zWrZkONPYiPzjeiUCRKUA47LcEaqU";
+const GDOC_URL = `https://docs.google.com/document/d/${DOC_ID}/export?format=txt`;
+
+const PROXIES = [
+  () => `https://corsproxy.io/?${encodeURIComponent(GDOC_URL)}`,
+  () => `https://api.allorigins.win/raw?url=${encodeURIComponent(GDOC_URL)}`,
+  () => `https://thingproxy.freeboard.io/fetch/${encodeURIComponent(GDOC_URL)}`,
+];
+
+async function timedFetch(url, ms=9000){
+  const ctrl = new AbortController();
+  const id   = setTimeout(()=>ctrl.abort(), ms);
+  try {
+    const res = await fetch(url,{ signal:ctrl.signal, cache:'no-store' });
+    if(!res.ok) throw new Error(`HTTP ${res.status}`);
+    return await res.text();
+  } finally { clearTimeout(id); }
+}
+
+async function getQuoteText(){
+  for(const proxyFn of PROXIES){
+    for(let attempt=0; attempt<3; attempt++){
+      try {
+        const text = await timedFetch(proxyFn());
+        if(text && text.length > 10) return text;
+      } catch(e){
+        if(attempt < 2) await new Promise(r=>setTimeout(r, 900*(attempt+1)));
+      }
+    }
+  }
+  throw new Error('All proxies exhausted');
+}
+
+/* ─── STATE ─── */
+let allQuotes = [], searchQ = '', busy = false;
+
+/* ─── LOAD ─── */
+async function loadQuotes(silent=false){
+  if(busy) return;
+  busy = true;
+  if(!silent){ showLoader(true); hideError(); }
+  try {
+    const text = await getQuoteText();
+    allQuotes = text.split('\n')
+      .map(q=>q.trim())
+      .filter(q=>q.length>5 && !/^[\s\W]{1,3}$/.test(q));
+    render();
+    const now = new Date();
+    el('syncStatus').textContent = `synced ${now.toLocaleTimeString([],{hour:'2-digit',minute:'2-digit'})}`;
+    if(silent) toast('Refreshed');
+  } catch(err){
+    console.error(err);
+    if(!silent) showError();
+  } finally {
+    showLoader(false);
+    busy = false;
+  }
+}
+
+/* ─── RENDER ─── */
+function render(){
+  const container = el('quotes');
+  const q = searchQ.toLowerCase();
+  const list = q ? allQuotes.filter(s=>s.toLowerCase().includes(q)) : allQuotes;
+
+  el('countDisplay').textContent = `${list.length} ${list.length===1?'thought':'thoughts'}`;
+
+  if(!list.length){
+    container.innerHTML='<p class="no-results">No thoughts match your search.</p>';
+    return;
+  }
+
+  container.innerHTML='';
+  list.forEach((quote,i)=>{
+    const card = document.createElement('div');
+    card.className='quote-card';
+    card.style.transitionDelay=`${Math.min(i*0.048,0.48)}s`;
+    card.innerHTML=`
+      <p class="quote-text">${esc(quote)}</p>
+      <div class="card-actions">
+        <button class="copy-btn">
+          <svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+            <rect x="9" y="9" width="13" height="13" rx="2"/>
+            <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/>
+          </svg>Copy
+        </button>
+      </div>`;
+    card.querySelector('.copy-btn').addEventListener('click', e=>{
+      e.stopPropagation();
+      copyQuote(quote, card.querySelector('.copy-btn'));
+    });
+    container.appendChild(card);
+  });
+
+  observe();
+}
+
+/* ─── INTERSECTION OBSERVER ─── */
+function observe(){
+  const io = new IntersectionObserver(entries=>{
+    entries.forEach(e=>{ if(e.isIntersecting){ e.target.classList.add('visible'); io.unobserve(e.target); }});
+  },{ threshold:0.06, rootMargin:'0px 0px -16px 0px' });
+  document.querySelectorAll('.quote-card').forEach(c=>io.observe(c));
+}
+
+/* ─── COPY ─── */
+function copyQuote(quote, btn){
+  navigator.clipboard.writeText(quote).then(()=>{
+    btn.classList.add('ok');
+    btn.innerHTML=`<svg fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><polyline points="20 6 9 17 4 12"/></svg>Copied`;
+    toast('Copied to clipboard');
+    setTimeout(()=>{
+      btn.classList.remove('ok');
+      btn.innerHTML=`<svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>Copy`;
+    },2400);
+  }).catch(()=>toast('Copy failed'));
+}
+
+/* ─── UI HELPERS ─── */
+function el(id){ return document.getElementById(id); }
+function esc(s){ return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
+
+function showLoader(on){
+  el('loader').classList.toggle('active',on);
+  el('quotes').style.display = on ? 'none' : '';
+}
+function showError(){ el('error-box').classList.add('active'); el('quotes').style.display='none'; }
+function hideError(){ el('error-box').classList.remove('active'); }
+
+let toastT;
+function toast(msg){
+  const t=el('toast'); t.textContent=msg; t.classList.add('show');
+  clearTimeout(toastT); toastT=setTimeout(()=>t.classList.remove('show'),2200);
+}
+
+/* ─── SEARCH ─── */
+let deb;
+el('searchInput').addEventListener('input',e=>{
+  clearTimeout(deb);
+  deb=setTimeout(()=>{ searchQ=e.target.value.trim(); render(); },240);
+});
+
+/* ─── THEME ─── */
+const saved = localStorage.getItem('rq_theme')||'night';
+applyTheme(saved);
+
+document.querySelectorAll('.theme-pill').forEach(btn=>{
+  btn.addEventListener('click',()=>{ applyTheme(btn.dataset.theme); localStorage.setItem('rq_theme',btn.dataset.theme); });
+});
+
+function applyTheme(t){
+  document.documentElement.dataset.theme=t;
+  document.querySelectorAll('.theme-pill').forEach(b=>b.classList.toggle('active',b.dataset.theme===t));
+}
+
+/* ─── RETRY ─── */
+el('retryBtn').addEventListener('click',()=>{ hideError(); showLoader(true); el('quotes').style.display='none'; loadQuotes(); });
+
+/* ─── INIT ─── */
+el('year').textContent=new Date().getFullYear();
+loadQuotes();
+setInterval(()=>loadQuotes(true), 3*60*1000);
+</script>
+</body>
+</html>
