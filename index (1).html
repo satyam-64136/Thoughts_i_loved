@@ -1,0 +1,933 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="dark">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Quiet Thoughts — by Raghav</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300;0,400;0,600;1,300;1,400&family=Lato:ital,wght@0,300;0,400;1,300&display=swap" rel="stylesheet">
+<style>
+/* ─────────────────────────────────────────
+   RESET
+───────────────────────────────────────── */
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+img, svg { display: block; }
+
+/* ─────────────────────────────────────────
+   DESIGN TOKENS — dark (default)
+───────────────────────────────────────── */
+:root {
+  --bg:          #10100e;
+  --bg2:         #141412;
+  --surface:     rgba(255,252,245,0.055);
+  --surface-h:   rgba(255,252,245,0.085);
+  --border:      rgba(255,252,245,0.09);
+  --border-h:    rgba(255,252,245,0.18);
+  --text:        #e8e4dc;
+  --text-soft:   #7a7468;
+  --text-faint:  #4a4640;
+
+  /* accent — indigo mist (default) */
+  --ac:          #8b9fd4;
+  --ac-dim:      rgba(139,159,212,0.12);
+  --ac-line:     rgba(139,159,212,0.3);
+
+  --serif:       'Cormorant Garamond', Georgia, serif;
+  --sans:        'Lato', system-ui, sans-serif;
+  --r:           14px;
+  --ease:        cubic-bezier(.4,0,.2,1);
+  --ease-out:    cubic-bezier(0,.6,.4,1);
+}
+
+/* light theme */
+[data-theme="light"] {
+  --bg:         #f7f5f0;
+  --bg2:        #f0ede6;
+  --surface:    rgba(255,255,255,0.65);
+  --surface-h:  rgba(255,255,255,0.85);
+  --border:     rgba(0,0,0,0.08);
+  --border-h:   rgba(0,0,0,0.14);
+  --text:       #1c1a17;
+  --text-soft:  #7a7060;
+  --text-faint: #b0a898;
+  --ac:         #5c6ea0;
+  --ac-dim:     rgba(92,110,160,0.09);
+  --ac-line:    rgba(92,110,160,0.25);
+}
+
+/* ─── accent palettes ─── */
+[data-ac="rose"] {
+  --ac:      #c49090;
+  --ac-dim:  rgba(196,144,144,0.12);
+  --ac-line: rgba(196,144,144,0.3);
+}
+[data-ac="teal"] {
+  --ac:      #7aadad;
+  --ac-dim:  rgba(122,173,173,0.12);
+  --ac-line: rgba(122,173,173,0.3);
+}
+[data-ac="sand"] {
+  --ac:      #c4ad82;
+  --ac-dim:  rgba(196,173,130,0.12);
+  --ac-line: rgba(196,173,130,0.3);
+}
+
+/* ─────────────────────────────────────────
+   BASE
+───────────────────────────────────────── */
+html { scroll-behavior: smooth; }
+
+body {
+  font-family: var(--sans);
+  font-weight: 300;
+  background: var(--bg);
+  color: var(--text);
+  min-height: 100vh;
+  overflow-x: hidden;
+  transition: background .5s var(--ease), color .4s var(--ease);
+}
+
+::-webkit-scrollbar { width: 4px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: var(--ac); border-radius: 4px; opacity: .4; }
+
+/* ─────────────────────────────────────────
+   CANVAS PARTICLES
+───────────────────────────────────────── */
+#canvas {
+  position: fixed;
+  inset: 0;
+  z-index: 0;
+  pointer-events: none;
+  opacity: .55;
+}
+
+/* ─────────────────────────────────────────
+   LAYOUT
+───────────────────────────────────────── */
+#app {
+  position: relative;
+  z-index: 1;
+  max-width: 1040px;
+  margin: 0 auto;
+  padding: 0 1.25rem 6rem;
+}
+
+/* ─────────────────────────────────────────
+   HEADER
+───────────────────────────────────────── */
+header {
+  padding: 4rem 0 3rem;
+  text-align: center;
+}
+
+.h-eyebrow {
+  display: inline-block;
+  font-family: var(--sans);
+  font-size: .65rem;
+  letter-spacing: .22em;
+  text-transform: uppercase;
+  color: var(--ac);
+  margin-bottom: 1rem;
+  transition: color .4s;
+}
+
+.h-eyebrow::before,
+.h-eyebrow::after {
+  content: '—';
+  margin: 0 .5em;
+  opacity: .4;
+}
+
+h1 {
+  font-family: var(--serif);
+  font-size: clamp(2.4rem, 6vw, 4rem);
+  font-weight: 300;
+  line-height: 1.15;
+  letter-spacing: .01em;
+  margin-bottom: .9rem;
+  color: var(--text);
+  transition: color .4s;
+}
+
+h1 i {
+  font-style: italic;
+  color: var(--ac);
+  transition: color .4s;
+}
+
+.h-sub {
+  font-family: var(--serif);
+  font-style: italic;
+  font-size: 1.05rem;
+  font-weight: 300;
+  color: var(--text-soft);
+  line-height: 1.7;
+  max-width: 380px;
+  margin: 0 auto;
+  transition: color .4s;
+}
+
+/* ornament */
+.ornament {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: .75rem;
+  margin: 2rem auto 0;
+  opacity: .25;
+}
+.ornament-line {
+  width: 60px;
+  height: 1px;
+  background: var(--text);
+}
+.ornament-dot {
+  width: 4px; height: 4px;
+  border-radius: 50%;
+  background: var(--text);
+}
+
+/* ─────────────────────────────────────────
+   QUOTE COUNT
+───────────────────────────────────────── */
+.meta-bar {
+  text-align: center;
+  font-size: .72rem;
+  color: var(--text-faint);
+  margin-bottom: 2rem;
+  letter-spacing: .06em;
+  transition: color .4s;
+}
+
+/* ─────────────────────────────────────────
+   LOADER
+───────────────────────────────────────── */
+#loader {
+  display: none;
+  flex-direction: column;
+  align-items: center;
+  gap: 1.2rem;
+  padding: 5rem 0;
+  color: var(--text-soft);
+}
+#loader.on { display: flex; }
+
+.loader-rings {
+  position: relative;
+  width: 36px; height: 36px;
+}
+.loader-rings::before,
+.loader-rings::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: 50%;
+  border: 1.5px solid transparent;
+}
+.loader-rings::before {
+  border-top-color: var(--ac);
+  animation: spin 1s linear infinite;
+}
+.loader-rings::after {
+  inset: 6px;
+  border-top-color: var(--ac-line);
+  animation: spin 1.6s linear infinite reverse;
+}
+@keyframes spin { to { transform: rotate(360deg); } }
+
+.loader-text {
+  font-family: var(--serif);
+  font-style: italic;
+  font-size: .9rem;
+  color: var(--text-soft);
+  transition: color .4s;
+}
+
+/* ─────────────────────────────────────────
+   ERROR STATE
+───────────────────────────────────────── */
+#error-state {
+  display: none;
+  flex-direction: column;
+  align-items: center;
+  gap: 1rem;
+  padding: 4rem 1rem;
+  text-align: center;
+}
+#error-state.on { display: flex; }
+
+.error-title {
+  font-family: var(--serif);
+  font-size: 1.4rem;
+  font-weight: 300;
+  font-style: italic;
+  color: var(--text-soft);
+}
+.error-sub {
+  font-size: .8rem;
+  color: var(--text-faint);
+  max-width: 300px;
+  line-height: 1.65;
+}
+.retry-btn {
+  margin-top: .5rem;
+  padding: .5rem 1.4rem;
+  border-radius: 6px;
+  border: 1px solid var(--border-h);
+  background: var(--surface);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+  color: var(--text-soft);
+  font-family: var(--sans);
+  font-size: .75rem;
+  letter-spacing: .06em;
+  cursor: pointer;
+  transition: border-color .2s, color .2s, background .2s;
+}
+.retry-btn:hover {
+  border-color: var(--ac);
+  color: var(--ac);
+  background: var(--ac-dim);
+}
+
+/* ─────────────────────────────────────────
+   GRID
+───────────────────────────────────────── */
+#grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(290px, 1fr));
+  gap: 1.1rem;
+}
+
+/* ─────────────────────────────────────────
+   CARD
+───────────────────────────────────────── */
+.card {
+  background: var(--surface);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  border: 1px solid var(--border);
+  border-radius: var(--r);
+  padding: 1.6rem 1.5rem 1.3rem;
+  display: flex;
+  flex-direction: column;
+  gap: .9rem;
+  position: relative;
+  overflow: hidden;
+  cursor: default;
+
+  opacity: 0;
+  transform: translateY(22px);
+  transition:
+    opacity .6s var(--ease-out),
+    transform .6s var(--ease-out),
+    border-color .3s,
+    background .3s,
+    box-shadow .3s;
+  will-change: transform, opacity;
+}
+
+/* top accent line */
+.card::before {
+  content: '';
+  position: absolute;
+  top: 0; left: 10%; right: 10%;
+  height: 1px;
+  background: linear-gradient(90deg, transparent, var(--ac), transparent);
+  opacity: 0;
+  transition: opacity .35s;
+}
+
+/* inner light sheen */
+.card::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(140deg, rgba(255,252,240,.025) 0%, transparent 55%);
+  border-radius: var(--r);
+  pointer-events: none;
+}
+
+.card.visible {
+  opacity: 1;
+  transform: translateY(0);
+}
+
+.card:hover {
+  background: var(--surface-h);
+  border-color: var(--border-h);
+  box-shadow: 0 6px 30px rgba(0,0,0,.22), 0 1px 0 var(--ac-line) inset;
+  transform: translateY(-3px);
+}
+.card:hover::before { opacity: 1; }
+
+/* card index */
+.card-idx {
+  font-size: .6rem;
+  letter-spacing: .14em;
+  color: var(--text-faint);
+  font-family: var(--sans);
+  transition: color .4s;
+}
+
+/* open quote glyph */
+.card-glyph {
+  position: absolute;
+  top: .8rem; right: 1.1rem;
+  font-family: var(--serif);
+  font-size: 4rem;
+  line-height: 1;
+  color: var(--ac);
+  opacity: .09;
+  pointer-events: none;
+  user-select: none;
+  transition: color .4s;
+}
+
+/* quote text */
+.card-text {
+  font-family: var(--serif);
+  font-size: 1.05rem;
+  font-weight: 300;
+  line-height: 1.8;
+  color: var(--text);
+  flex: 1;
+  transition: color .4s;
+}
+
+/* copy button */
+.card-footer {
+  display: flex;
+  justify-content: flex-end;
+  opacity: 0;
+  transform: translateY(3px);
+  transition: opacity .2s, transform .2s;
+}
+.card:hover .card-footer { opacity: 1; transform: none; }
+
+@media (max-width: 520px) {
+  .card-footer { opacity: 1; transform: none; }
+}
+
+.copy-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: .35rem;
+  padding: .3rem .7rem;
+  border-radius: 6px;
+  border: 1px solid var(--border);
+  background: transparent;
+  color: var(--text-faint);
+  font-family: var(--sans);
+  font-size: .68rem;
+  letter-spacing: .05em;
+  cursor: pointer;
+  transition: border-color .2s, color .2s, background .2s;
+}
+.copy-btn svg { width: 11px; height: 11px; flex-shrink: 0; }
+.copy-btn:hover, .copy-btn.done {
+  border-color: var(--ac);
+  color: var(--ac);
+  background: var(--ac-dim);
+}
+
+/* ─────────────────────────────────────────
+   TOAST
+───────────────────────────────────────── */
+#toast {
+  position: fixed;
+  bottom: 1.75rem;
+  left: 50%;
+  transform: translateX(-50%) translateY(8px);
+  background: var(--surface);
+  backdrop-filter: blur(18px);
+  -webkit-backdrop-filter: blur(18px);
+  border: 1px solid var(--border-h);
+  border-radius: 8px;
+  padding: .55rem 1.2rem;
+  font-family: var(--serif);
+  font-style: italic;
+  font-size: .85rem;
+  color: var(--ac);
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity .28s var(--ease), transform .28s var(--ease);
+  z-index: 500;
+  white-space: nowrap;
+}
+#toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
+
+/* ─────────────────────────────────────────
+   FOOTER
+───────────────────────────────────────── */
+footer {
+  margin-top: 4rem;
+  padding: 2rem 0 0;
+  border-top: 1px solid var(--border);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 1.75rem;
+  transition: border-color .4s;
+}
+
+.footer-sig {
+  text-align: center;
+}
+.footer-name {
+  font-family: var(--serif);
+  font-size: 1.1rem;
+  font-weight: 300;
+  font-style: italic;
+  color: var(--text-soft);
+  transition: color .4s;
+}
+.footer-name span { color: var(--ac); transition: color .4s; }
+.footer-copy {
+  font-size: .68rem;
+  color: var(--text-faint);
+  margin-top: .3rem;
+  transition: color .4s;
+}
+
+/* ── theme / accent switcher ── */
+.switcher {
+  display: flex;
+  align-items: center;
+  gap: 1.5rem;
+  flex-wrap: wrap;
+  justify-content: center;
+}
+
+.sw-group {
+  display: flex;
+  align-items: center;
+  gap: .5rem;
+}
+.sw-label {
+  font-size: .62rem;
+  letter-spacing: .12em;
+  text-transform: uppercase;
+  color: var(--text-faint);
+  transition: color .4s;
+}
+
+.sw-btn {
+  width: 28px; height: 28px;
+  border-radius: 50%;
+  border: 1.5px solid var(--border);
+  cursor: pointer;
+  display: grid; place-items: center;
+  font-size: .65rem;
+  transition: border-color .2s, transform .15s;
+  background: var(--surface);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+  color: var(--text-soft);
+}
+.sw-btn:hover { transform: scale(1.12); }
+.sw-btn.on { border-color: var(--ac); box-shadow: 0 0 0 2px var(--ac-dim); }
+
+/* accent dots */
+.ac-dot {
+  width: 28px; height: 28px;
+  border-radius: 50%;
+  border: 1.5px solid transparent;
+  cursor: pointer;
+  transition: transform .15s, border-color .2s;
+}
+.ac-dot:hover { transform: scale(1.12); }
+.ac-dot.on { border-color: var(--text-soft); }
+
+.footer-sync {
+  font-size: .62rem;
+  color: var(--text-faint);
+  display: flex; align-items: center; gap: .4rem;
+  transition: color .4s;
+}
+.sync-dot {
+  width: 5px; height: 5px;
+  border-radius: 50%;
+  background: var(--ac);
+  animation: blink 3s ease-in-out infinite;
+  transition: background .4s;
+}
+@keyframes blink { 0%,100%{opacity:1} 50%{opacity:.25} }
+
+/* ─────────────────────────────────────────
+   RESPONSIVE
+───────────────────────────────────────── */
+@media (max-width: 540px) {
+  header { padding: 2.5rem 0 2rem; }
+  #grid  { grid-template-columns: 1fr; }
+  .card-text { font-size: 1rem; }
+  .switcher { gap: 1rem; }
+  footer { gap: 1.25rem; }
+}
+
+@media (min-width: 900px) {
+  #grid { grid-template-columns: repeat(3, 1fr); }
+}
+</style>
+</head>
+<body>
+
+<canvas id="canvas"></canvas>
+
+<div id="app">
+
+  <!-- HEADER -->
+  <header>
+    <div class="h-eyebrow">Quiet Thoughts</div>
+    <h1>Words that<br><i>remain</i></h1>
+    <p class="h-sub">Introspective reflections on growth, healing, and honesty</p>
+    <div class="ornament">
+      <span class="ornament-line"></span>
+      <span class="ornament-dot"></span>
+      <span class="ornament-dot"></span>
+      <span class="ornament-dot"></span>
+      <span class="ornament-line"></span>
+    </div>
+  </header>
+
+  <!-- META -->
+  <p class="meta-bar" id="metaBar">&nbsp;</p>
+
+  <!-- LOADER -->
+  <div id="loader">
+    <div class="loader-rings"></div>
+    <span class="loader-text">gathering thoughts&hellip;</span>
+  </div>
+
+  <!-- ERROR -->
+  <div id="error-state">
+    <p class="error-title">Couldn't reach the journal.</p>
+    <p class="error-sub">The thoughts are still there — just momentarily out of reach. Check your connection and try again.</p>
+    <button class="retry-btn" id="retryBtn">Try again</button>
+  </div>
+
+  <!-- GRID -->
+  <main id="grid"></main>
+
+  <!-- FOOTER -->
+  <footer>
+    <div class="footer-sig">
+      <div class="footer-name">by <span>Raghav</span></div>
+      <div class="footer-copy">&copy; <span id="yr"></span> &nbsp;&middot;&nbsp; syncs quietly every 3 min</div>
+    </div>
+
+    <div class="switcher">
+      <!-- light / dark -->
+      <div class="sw-group">
+        <span class="sw-label">Mode</span>
+        <button class="sw-btn on" data-theme="dark" title="Dark">
+          <svg width="12" height="12" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+            <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/>
+          </svg>
+        </button>
+        <button class="sw-btn" data-theme="light" title="Light">
+          <svg width="12" height="12" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+            <circle cx="12" cy="12" r="5"/>
+            <line x1="12" y1="1" x2="12" y2="3"/><line x1="12" y1="21" x2="12" y2="23"/>
+            <line x1="4.22" y1="4.22" x2="5.64" y2="5.64"/><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"/>
+            <line x1="1" y1="12" x2="3" y2="12"/><line x1="21" y1="12" x2="23" y2="12"/>
+            <line x1="4.22" y1="19.78" x2="5.64" y2="18.36"/><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"/>
+          </svg>
+        </button>
+      </div>
+
+      <!-- accent -->
+      <div class="sw-group">
+        <span class="sw-label">Accent</span>
+        <div class="ac-dot on" data-ac="indigo" style="background:#8b9fd4" title="Indigo mist"></div>
+        <div class="ac-dot" data-ac="rose"   style="background:#c49090" title="Dusty rose"></div>
+        <div class="ac-dot" data-ac="teal"   style="background:#7aadad" title="Slate teal"></div>
+        <div class="ac-dot" data-ac="sand"   style="background:#c4ad82" title="Warm sand"></div>
+      </div>
+    </div>
+
+    <div class="footer-sync">
+      <span class="sync-dot"></span>
+      <span id="syncLabel">waiting for sync</span>
+    </div>
+  </footer>
+
+</div><!-- #app -->
+
+<div id="toast"></div>
+
+<script>
+/* ══════════════════════════════════════════
+   PARTICLES
+══════════════════════════════════════════ */
+(function () {
+  const canvas = document.getElementById('canvas');
+  const ctx    = canvas.getContext('2d');
+  let W, H, pts = [];
+  const COUNT = 42;
+
+  function resize() {
+    W = canvas.width  = window.innerWidth;
+    H = canvas.height = window.innerHeight;
+  }
+
+  function accentRgb() {
+    const c = getComputedStyle(document.documentElement)
+                .getPropertyValue('--ac').trim();
+    /* parse hex like #8b9fd4 */
+    const hex = c.replace('#','');
+    if (hex.length === 6) {
+      return [
+        parseInt(hex.slice(0,2),16),
+        parseInt(hex.slice(2,4),16),
+        parseInt(hex.slice(4,6),16)
+      ];
+    }
+    return [139,159,212];
+  }
+
+  function seed() {
+    pts = [];
+    for (let i = 0; i < COUNT; i++) {
+      pts.push({
+        x:  Math.random() * W,
+        y:  Math.random() * H,
+        r:  1 + Math.random() * 1.8,
+        vx: (Math.random() - .5) * .28,
+        vy: (Math.random() - .5) * .22,
+        o:  .08 + Math.random() * .18,
+      });
+    }
+  }
+
+  function draw() {
+    ctx.clearRect(0, 0, W, H);
+    const [r,g,b] = accentRgb();
+    pts.forEach(p => {
+      ctx.beginPath();
+      ctx.arc(p.x, p.y, p.r, 0, Math.PI * 2);
+      ctx.fillStyle = `rgba(${r},${g},${b},${p.o})`;
+      ctx.fill();
+
+      p.x += p.vx;
+      p.y += p.vy;
+      if (p.x < -4)  p.x = W + 4;
+      if (p.x > W+4) p.x = -4;
+      if (p.y < -4)  p.y = H + 4;
+      if (p.y > H+4) p.y = -4;
+    });
+
+    requestAnimationFrame(draw);
+  }
+
+  resize();
+  seed();
+  draw();
+
+  window.addEventListener('resize', () => { resize(); seed(); });
+})();
+
+/* ══════════════════════════════════════════
+   FETCH
+══════════════════════════════════════════ */
+const DOC_ID  = "1LHDYzFACDK_I90zWrZkONPYiPzjeiUCRKUA47LcEaqU";
+const DOC_URL = `https://corsproxy.io/?https://docs.google.com/document/d/${DOC_ID}/export?format=txt`;
+
+let allQuotes = [];
+
+async function loadQuotes(silent = false) {
+  if (!silent) setUI('loading');
+
+  try {
+    const res = await fetch(DOC_URL);
+    const txt = await res.text();
+
+    allQuotes = txt.split('\n').map(s => s.trim()).filter(s => s.length > 5);
+
+    renderCards();
+    updateSync();
+    if (!silent) showToast('Thoughts gathered.');
+  } catch {
+    if (allQuotes.length > 0) {
+      renderCards();
+    } else if (!silent) {
+      setUI('error');
+    }
+  }
+}
+
+/* ══════════════════════════════════════════
+   UI STATES
+══════════════════════════════════════════ */
+function setUI(state) {
+  document.getElementById('loader').classList.toggle('on', state === 'loading');
+  document.getElementById('error-state').classList.toggle('on', state === 'error');
+  document.getElementById('grid').style.visibility = state === 'loading' ? 'hidden' : 'visible';
+  document.getElementById('grid').style.opacity    = state === 'loading' ? '0' : '';
+}
+
+/* ══════════════════════════════════════════
+   RENDER
+══════════════════════════════════════════ */
+function renderCards() {
+  const grid = document.getElementById('grid');
+  grid.innerHTML = '';
+  setUI('ready');
+
+  document.getElementById('metaBar').textContent =
+    allQuotes.length === 1 ? '1 thought' : `${allQuotes.length} thoughts`;
+
+  allQuotes.forEach((q, i) => {
+    const card = document.createElement('div');
+    card.className = 'card';
+    card.style.transitionDelay = `${Math.min(i * 0.038, 0.52)}s`;
+
+    card.innerHTML = `
+      <span class="card-glyph">&ldquo;</span>
+      <span class="card-idx">${String(i + 1).padStart(3, '0')}</span>
+      <p class="card-text">${esc(q)}</p>
+      <div class="card-footer">
+        <button class="copy-btn" aria-label="Copy quote">
+          <svg fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24">
+            <rect x="9" y="9" width="13" height="13" rx="2" ry="2"/>
+            <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/>
+          </svg>
+          Copy
+        </button>
+      </div>`;
+
+    card.querySelector('.copy-btn').addEventListener('click', () => doCopy(q, card.querySelector('.copy-btn')));
+    grid.appendChild(card);
+  });
+
+  revealCards();
+}
+
+function revealCards() {
+  const io = new IntersectionObserver(entries => {
+    entries.forEach(e => {
+      if (e.isIntersecting) {
+        e.target.classList.add('visible');
+        io.unobserve(e.target);
+      }
+    });
+  }, { threshold: 0.06 });
+
+  document.querySelectorAll('.card').forEach(c => io.observe(c));
+}
+
+/* ══════════════════════════════════════════
+   COPY
+══════════════════════════════════════════ */
+function doCopy(q, btn) {
+  navigator.clipboard.writeText(`"${q}" — Raghav`).then(() => {
+    btn.classList.add('done');
+    btn.innerHTML = `
+      <svg fill="none" stroke="currentColor" stroke-width="2.2" viewBox="0 0 24 24" width="11" height="11">
+        <polyline points="20 6 9 17 4 12"/>
+      </svg> Copied`;
+    showToast('Copied to clipboard.');
+    setTimeout(() => {
+      btn.classList.remove('done');
+      btn.innerHTML = `
+        <svg fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24" width="11" height="11">
+          <rect x="9" y="9" width="13" height="13" rx="2" ry="2"/>
+          <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/>
+        </svg> Copy`;
+    }, 2000);
+  });
+}
+
+/* ══════════════════════════════════════════
+   TOAST
+══════════════════════════════════════════ */
+let toastTmr;
+function showToast(msg) {
+  const el = document.getElementById('toast');
+  el.textContent = msg;
+  el.classList.add('show');
+  clearTimeout(toastTmr);
+  toastTmr = setTimeout(() => el.classList.remove('show'), 2400);
+}
+
+/* ══════════════════════════════════════════
+   SYNC LABEL
+══════════════════════════════════════════ */
+function updateSync() {
+  const t = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+  document.getElementById('syncLabel').textContent = `synced at ${t}`;
+}
+
+/* ══════════════════════════════════════════
+   THEME — mode
+══════════════════════════════════════════ */
+const savedTheme = localStorage.getItem('qTheme') || 'dark';
+document.documentElement.dataset.theme = savedTheme;
+
+document.querySelectorAll('[data-theme]').forEach(btn => {
+  btn.classList.toggle('on', btn.dataset.theme === savedTheme);
+  btn.addEventListener('click', () => {
+    const t = btn.dataset.theme;
+    document.documentElement.dataset.theme = t;
+    document.querySelectorAll('[data-theme]').forEach(b => b.classList.toggle('on', b === btn));
+    localStorage.setItem('qTheme', t);
+  });
+});
+
+/* ══════════════════════════════════════════
+   THEME — accent
+══════════════════════════════════════════ */
+const accentMap = {
+  indigo: '',       /* default — no data-ac attribute needed */
+  rose:   'rose',
+  teal:   'teal',
+  sand:   'sand',
+};
+
+const savedAc = localStorage.getItem('qAc') || 'indigo';
+applyAccent(savedAc);
+
+document.querySelectorAll('[data-ac]').forEach(dot => {
+  dot.classList.toggle('on', dot.dataset.ac === savedAc);
+  dot.addEventListener('click', () => {
+    const a = dot.dataset.ac;
+    applyAccent(a);
+    document.querySelectorAll('[data-ac]').forEach(d => d.classList.toggle('on', d === dot));
+    localStorage.setItem('qAc', a);
+  });
+});
+
+function applyAccent(name) {
+  /* remove all accent attrs first */
+  Object.values(accentMap).forEach(v => { if (v) document.documentElement.removeAttribute('data-ac'); });
+  if (accentMap[name]) document.documentElement.setAttribute('data-ac', accentMap[name]);
+}
+
+/* ══════════════════════════════════════════
+   RETRY BUTTON
+══════════════════════════════════════════ */
+document.getElementById('retryBtn').addEventListener('click', () => {
+  document.getElementById('error-state').classList.remove('on');
+  loadQuotes(false);
+});
+
+/* ══════════════════════════════════════════
+   HELPERS
+══════════════════════════════════════════ */
+function esc(s) {
+  return s
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;');
+}
+
+/* ══════════════════════════════════════════
+   INIT
+══════════════════════════════════════════ */
+document.getElementById('yr').textContent = new Date().getFullYear();
+loadQuotes();
+setInterval(() => loadQuotes(true), 180_000);
+</script>
+</body>
+</html>
