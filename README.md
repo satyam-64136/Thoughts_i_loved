@@ -125,7 +125,7 @@ const accentMap = { indigo: '', rose: 'rose', teal: 'teal', sand: 'sand', yourna
 
 ### Adjust the auto-refresh interval
 
-The default is 3 minutes (180,000 ms). Change it at the bottom of the script:
+The default is 3 minutes (180,000 ms) Change it at the bottom of the script:
 
 ```js
 setInterval(() => loadQuotes(true), 180_000); // change 180_000 to any ms value
@@ -171,6 +171,6 @@ Works in all modern browsers. Requires:
 
 ## License
 
-Personal project — feel free to fork and adapt for your own use.
+Personal project - feel free to fork and adapt for your own use.
 
 *Made with quiet intention.*
