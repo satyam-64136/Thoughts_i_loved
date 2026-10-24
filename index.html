@@ -190,6 +190,12 @@ h1 {
   margin-bottom:1.5rem; line-height:1.7;
 }
 
+.error-detail {
+  font-size:0.68rem; color:var(--txt-lo);
+  line-height:1.7; margin-bottom:1.4rem;
+  white-space:pre-line;
+}
+
 .retry-btn {
   background:none;
   border:1px solid var(--border-h);
@@ -406,6 +412,7 @@ footer {
   <div id="error-box">
     <p class="error-title">Could not reach the document</p>
     <p class="error-sub">The fetch failed after several attempts.<br>Check your connection or try again.</p>
+    <p class="error-detail" id="errDetail"></p>
     <button class="retry-btn" id="retryBtn">Try again</button>
   </div>
 
@@ -496,54 +503,58 @@ footer {
   resize(); draw();
 })();
 
-/* ─── FETCH (parallel sources + validation + cache fallback) ─── */
+/* ─── FETCH: primary sources first, public proxies as backup ─── */
 const DOC_ID   = "1LHDYzFACDK_I90zWrZkONPYiPzjeiUCRKUA47LcEaqU";
 const GDOC_URL = `https://docs.google.com/document/d/${DOC_ID}/export?format=txt`;
 
-/* OPTIONAL permanent fix: paste your Google Apps Script web-app URL here (see instructions).
-   Leave empty to use public proxies only. */
+/* Primary 1 (optional, most reliable): your own Cloudflare Worker URL, e.g. "https://thoughts.yourname.workers.dev/" */
+const WORKER_URL = "https://thoughts.ironman64136.workers.dev/";
+
+/* Primary 2: Google Apps Script web app */
 const APPS_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbwX1qtzSqt8Q1TX32QlxdX0Ml0so9X8n91ogooZtcW4BC6qYEvA4OS9nbFgEWxqwEedgQ/exec";
 
-const SOURCES = [
-  ...(APPS_SCRIPT_URL ? [{ url: () => APPS_SCRIPT_URL }] : []),
-  { url: () => GDOC_URL },
-  { url: () => `https://api.codetabs.com/v1/proxy/?quest=${encodeURIComponent(GDOC_URL)}` },
-  { url: () => `https://api.allorigins.win/raw?url=${encodeURIComponent(GDOC_URL)}` },
-  { url: () => `https://api.allorigins.win/get?url=${encodeURIComponent(GDOC_URL)}`, json: true },
-  { url: () => `https://corsproxy.io/?url=${encodeURIComponent(GDOC_URL)}` },
-  { url: () => `https://cors.eu.org/${GDOC_URL}` },
-  { url: () => `https://r.jina.ai/${GDOC_URL}`, jina: true },
+const PRIMARY = [
+  ...(WORKER_URL ? [{ name:'Worker', ms:8000, url:() => WORKER_URL }] : []),
+  ...(APPS_SCRIPT_URL ? [{ name:'Apps Script', ms:20000, url:() => APPS_SCRIPT_URL }] : []),
+];
+
+const BACKUP = [
+  { name:'Google Docs', ms:8000, url:() => GDOC_URL },
+  { name:'allorigins', ms:8000, url:() => `https://api.allorigins.win/raw?url=${encodeURIComponent(GDOC_URL)}` },
+  { name:'corsproxy', ms:8000, url:() => `https://corsproxy.io/?${encodeURIComponent(GDOC_URL)}` },
+  { name:'codetabs', ms:8000, url:() => `https://api.codetabs.com/v1/proxy?quest=${encodeURIComponent(GDOC_URL)}` },
 ];
 
 function looksValid(text){
   if(!text || text.length < 10) return false;
-  const head = text.slice(0, 400).toLowerCase();
-  if(head.includes('<!doctype html') || head.includes('<html')) return false;
-  return true;
+  return !/^\s*<(!doctype|html)/i.test(text);
 }
 
-async function fetchSource(src, ms=10000){
+async function fetchSource(src){
   const ctrl = new AbortController();
-  const id   = setTimeout(()=>ctrl.abort(), ms);
+  const id   = setTimeout(()=>ctrl.abort(), src.ms);
   try {
     const res = await fetch(src.url(), { signal:ctrl.signal, cache:'no-store' });
     if(!res.ok) throw new Error(`HTTP ${res.status}`);
-    let text = await res.text();
-    if(src.json){ text = (JSON.parse(text).contents) || ''; }
-    if(src.jina){ const i = text.indexOf('Markdown Content:'); if(i>-1) text = text.slice(i+17); }
-    text = text.replace(/^\uFEFF/, '');
+    const text = (await res.text()).replace(/^\uFEFF/, '');
     if(!looksValid(text)) throw new Error('Invalid content');
     return text;
+  } catch(e){
+    throw new Error(`${src.name}: ${e.name==='AbortError' ? 'timed out' : e.message}`);
   } finally { clearTimeout(id); }
 }
 
+let lastErrors = [];
 async function getQuoteText(){
-  for(let round=0; round<3; round++){
-    try {
-      return await Promise.any(SOURCES.map(s=>fetchSource(s)));
-    } catch(e){
-      await new Promise(r=>setTimeout(r, 1000*(round+1)));
+  lastErrors = [];
+  for(let round=0; round<2; round++){
+    if(PRIMARY.length){
+      try { return await Promise.any(PRIMARY.map(fetchSource)); }
+      catch(e){ lastErrors.push(...(e.errors||[]).map(x=>x.message)); }
     }
+    try { return await Promise.any(BACKUP.map(fetchSource)); }
+    catch(e){ lastErrors.push(...(e.errors||[]).map(x=>x.message)); }
+    await new Promise(r=>setTimeout(r, 1500));
   }
   throw new Error('All sources failed');
 }
@@ -557,7 +568,6 @@ function parseQuotes(text){
     .map(q=>q.trim())
     .filter(q=>q.length>5 && !/^[\s\W]{1,3}$/.test(q));
 }
-
 function readCache(){
   try { return localStorage.getItem(CACHE_KEY) || ''; } catch(e){ return ''; }
 }
@@ -569,7 +579,10 @@ function writeCache(text){
 async function loadQuotes(silent=false){
   if(busy) return;
   busy = true;
-  if(!silent){ showLoader(true); hideError(); }
+  if(!silent){
+    hideError();
+    if(!allQuotes.length) showLoader(true);
+  }
   try {
     const text = await getQuoteText();
     writeCache(text);
@@ -577,14 +590,16 @@ async function loadQuotes(silent=false){
     render();
     const now = new Date();
     el('syncStatus').textContent = `synced ${now.toLocaleTimeString([],{hour:'2-digit',minute:'2-digit'})}`;
+    el('syncStatus').title = '';
     if(silent) toast('Refreshed');
   } catch(err){
-    console.error(err);
+    console.error(err, lastErrors);
     const cached = readCache();
     if(cached){
       allQuotes = parseQuotes(cached);
       render();
       el('syncStatus').textContent = 'offline · showing saved copy';
+      el('syncStatus').title = lastErrors.join('\n');
     } else if(!silent){
       showError();
     }
@@ -661,7 +676,11 @@ function showLoader(on){
   el('loader').classList.toggle('active',on);
   el('quotes').style.display = on ? 'none' : '';
 }
-function showError(){ el('error-box').classList.add('active'); el('quotes').style.display='none'; }
+function showError(){
+  el('errDetail').textContent = lastErrors.join('\n');
+  el('error-box').classList.add('active');
+  el('quotes').style.display='none';
+}
 function hideError(){ el('error-box').classList.remove('active'); }
 
 let toastT;
@@ -695,7 +714,7 @@ function applyTheme(t){
 }
 
 /* ─── RETRY ─── */
-el('retryBtn').addEventListener('click',()=>{ hideError(); showLoader(true); el('quotes').style.display='none'; loadQuotes(); });
+el('retryBtn').addEventListener('click',()=>{ hideError(); showLoader(true); loadQuotes(); });
 
 /* ─── INIT ─── */
 el('year').textContent=new Date().getFullYear();
