@@ -267,6 +267,13 @@ h1 i {
   max-width: 300px;
   line-height: 1.7;
 }
+.error-detail {
+  font-size: .68rem;
+  color: var(--text-faint);
+  line-height: 1.7;
+  white-space: pre-line;
+  max-width: 420px;
+}
 .retry-btn {
   margin-top: .5rem;
   padding: .5rem 1.5rem;
@@ -427,6 +434,36 @@ h1 i {
   border-color: var(--ac);
   color: var(--ac);
   background: var(--ac-dim);
+}
+
+/* cursor-following light inside each card */
+.card-spot {
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  pointer-events: none;
+  background: radial-gradient(360px circle at var(--mx, 50%) var(--my, 0%), var(--ac-dim), transparent 65%);
+  opacity: 0;
+  transition: opacity .4s;
+}
+.card:hover .card-spot { opacity: 1; }
+
+/* reading progress hairline */
+#progress {
+  position: fixed;
+  top: 0; left: 0; right: 0;
+  height: 2px;
+  z-index: 600;
+  background: linear-gradient(90deg, transparent, var(--ac));
+  transform-origin: 0 50%;
+  transform: scaleX(0);
+  pointer-events: none;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  html { scroll-behavior: auto; }
+  .card { transition: opacity .01ms; transform: none; }
+  *, *::before, *::after { animation-duration: .01ms !important; }
 }
 
 /* ─────────────────────────────────────────
@@ -611,6 +648,7 @@ footer {
 </head>
 <body>
 
+<div id="progress"></div>
 <canvas id="canvas"></canvas>
 
 <div id="app">
@@ -642,6 +680,7 @@ footer {
   <div id="error-state">
     <p class="error-title">Couldn't reach the journal.</p>
     <p class="error-sub">The thoughts are still there — just momentarily out of reach. Check your connection and try again.</p>
+    <p class="error-detail" id="errDetail"></p>
     <button class="retry-btn" id="retryBtn">Try again</button>
   </div>
 
@@ -774,44 +813,112 @@ footer {
 })();
 
 /* ══════════════════════════════════════════
-   FETCH — GOOGLE SHEETS
+   FETCH — primary sources first, public proxies as backup
 ══════════════════════════════════════════ */
-const DOC_URL = "https://docs.google.com/document/d/1LHDYzFACDK_I90zWrZkONPYiPzjeiUCRKUA47LcEaqU/export?format=txt";
-const PROXIES = [
-  u => 'https://api.allorigins.win/raw?url=' + encodeURIComponent(u),
-  u => 'https://corsproxy.io/?' + encodeURIComponent(u),
-  u => 'https://api.codetabs.com/v1/proxy?quest=' + encodeURIComponent(u),
+const DOC_ID  = "1LHDYzFACDK_I90zWrZkONPYiPzjeiUCRKUA47LcEaqU";
+const DOC_URL = `https://docs.google.com/document/d/${DOC_ID}/export?format=txt`;
+
+/* Primary 1: your Cloudflare Worker */
+const WORKER_URL = "https://thoughts.ironman64136.workers.dev/";
+/* Primary 2: your Google Apps Script web app */
+const APPS_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbwX1qtzSqt8Q1TX32QlxdX0Ml0so9X8n91ogooZtcW4BC6qYEvA4OS9nbFgEWxqwEedgQ/exec";
+
+const PRIMARY = [
+  ...(WORKER_URL ? [{ name:'Worker', ms:8000, url:() => WORKER_URL }] : []),
+  ...(APPS_SCRIPT_URL ? [{ name:'Apps Script', ms:20000, url:() => APPS_SCRIPT_URL }] : []),
+];
+const BACKUP = [
+  { name:'Google Docs', ms:8000, url:() => DOC_URL },
+  { name:'allorigins',  ms:8000, url:() => 'https://api.allorigins.win/raw?url=' + encodeURIComponent(DOC_URL) },
+  { name:'corsproxy',   ms:8000, url:() => 'https://corsproxy.io/?' + encodeURIComponent(DOC_URL) },
+  { name:'codetabs',    ms:8000, url:() => 'https://api.codetabs.com/v1/proxy?quest=' + encodeURIComponent(DOC_URL) },
 ];
 
-let allQuotes = [];
+/* safe storage: some in-app browsers block localStorage and would otherwise halt the whole script */
+const store = {
+  get(k){ try { return localStorage.getItem(k); } catch(e){ return null; } },
+  set(k,v){ try { localStorage.setItem(k,v); } catch(e){} }
+};
+const CACHE_KEY = 'qCache';
 
-async function fetchWithFallback() {
-  const tryProxy = async (proxy) => {
-    const res = await fetch(proxy(DOC_URL), { cache: 'no-store' });
-    if (!res.ok) throw new Error('bad status');
-    const text = await res.text();
-    if (!text || text.length < 10) throw new Error('empty');
+let allQuotes = [], lastKey = '', busy = false, lastErrors = [];
+
+function looksValid(text){
+  if (!text || text.length < 10) return false;
+  return !/^\s*<(!doctype|html)/i.test(text);
+}
+
+async function fetchSource(src){
+  /* timeout via Promise.race (no AbortSignal: some in-app browsers can't clone it) */
+  let id;
+  const timeout = new Promise((_,rej)=>{ id = setTimeout(()=>rej(new Error('timed out')), src.ms); });
+  const run = (async ()=>{
+    const res = await fetch(src.url(), { cache:'no-store' });
+    if (!res.ok) throw new Error('HTTP ' + res.status);
+    const text = (await res.text()).replace(/^\uFEFF/, '');
+    if (!looksValid(text)) throw new Error('invalid content');
     return text;
-  };
-  return Promise.any(PROXIES.map(p => tryProxy(p)));
+  })();
+  run.catch(()=>{});
+  try { return await Promise.race([run, timeout]); }
+  catch(e){ throw new Error(src.name + ': ' + e.message); }
+  finally { clearTimeout(id); }
+}
+
+async function getQuoteText(){
+  lastErrors = [];
+  for (let round = 0; round < 2; round++){
+    if (PRIMARY.length){
+      try { return await Promise.any(PRIMARY.map(fetchSource)); }
+      catch(e){ lastErrors.push(...(e.errors||[]).map(x=>x.message)); }
+    }
+    try { return await Promise.any(BACKUP.map(fetchSource)); }
+    catch(e){ lastErrors.push(...(e.errors||[]).map(x=>x.message)); }
+    await new Promise(r=>setTimeout(r, 1500));
+  }
+  throw new Error('All sources failed');
+}
+
+function parseQuotes(raw){
+  return raw
+    .replace(/\r\n/g, '\n').replace(/\r/g, '\n')
+    .split(/\n{2,}/)
+    .map(l => l.trim().replace(/\n/g, ' ').replace(/\s+/g, ' '))
+    .filter(l => l.length > 5);
+}
+
+/* render only when the thoughts actually changed (no flicker on the 3-min refresh) */
+function applyQuotes(list){
+  if (!list.length) throw new Error('No quotes found');
+  const key = list.join('\u0001');
+  if (key === lastKey && allQuotes.length) return;
+  lastKey = key; allQuotes = list;
+  renderCards();
 }
 
 async function loadQuotes(silent = false) {
-  if (!silent) setUI('loading');
+  if (busy) return;
+  busy = true;
+  if (!silent) document.getElementById('error-state').classList.remove('on');
+  if (!silent && !allQuotes.length) setUI('loading');
   try {
-    const raw = await fetchWithFallback();
-    allQuotes = raw
-      .replace(/\r\n/g, '\n').replace(/\r/g, '\n')
-      .split(/\n{2,}/)
-      .map(l => l.trim().replace(/\n/g, ' ').replace(/\s+/g, ' '))
-      .filter(l => l.length > 5);
-    if (allQuotes.length === 0) throw new Error('No quotes found');
-    renderCards();
+    const raw = await getQuoteText();
+    store.set(CACHE_KEY, raw);
+    applyQuotes(parseQuotes(raw));
     updateSync();
     if (!silent) showToast('Thoughts gathered.');
   } catch (error) {
-    console.error('Error loading quotes:', error);
-    if (allQuotes.length === 0 && !silent) setUI('error');
+    console.error('Error loading quotes:', error, lastErrors);
+    if (allQuotes.length) {
+      const el = document.getElementById('syncLabel');
+      el.textContent = 'offline · showing saved copy';
+      el.title = lastErrors.join('\n');
+    } else if (!silent) {
+      document.getElementById('errDetail').textContent = lastErrors.join('\n');
+      setUI('error');
+    }
+  } finally {
+    busy = false;
   }
 }
 
@@ -842,6 +949,7 @@ function renderCards() {
     card.style.transitionDelay = `${Math.min(i * 0.038, 0.52)}s`;
 
     card.innerHTML = `
+      <span class="card-spot"></span>
       <span class="card-glyph">\u201c</span>
       <p class="card-text">${esc(q)}</p>
       <div class="card-footer">
@@ -855,6 +963,11 @@ function renderCards() {
       </div>`;
 
     card.querySelector('.copy-btn').addEventListener('click', () => doCopy(q, card.querySelector('.copy-btn')));
+    card.addEventListener('pointermove', e => {
+      const r = card.getBoundingClientRect();
+      card.style.setProperty('--mx', (e.clientX - r.left) + 'px');
+      card.style.setProperty('--my', (e.clientY - r.top) + 'px');
+    });
     grid.appendChild(card);
   });
 
@@ -864,7 +977,13 @@ function renderCards() {
 function revealCards() {
   const io = new IntersectionObserver(entries => {
     entries.forEach(e => {
-      if (e.isIntersecting) { e.target.classList.add('visible'); io.unobserve(e.target); }
+      if (e.isIntersecting) {
+        const el = e.target;
+        el.classList.add('visible');
+        io.unobserve(el);
+        /* drop the entrance stagger so hover feels instant */
+        setTimeout(() => { el.style.transitionDelay = ''; }, (parseFloat(el.style.transitionDelay) || 0) * 1000 + 800);
+      }
     });
   }, { threshold: 0.06 });
   document.querySelectorAll('.card').forEach(c => io.observe(c));
@@ -915,16 +1034,16 @@ function updateSync() {
 /* ══════════════════════════════════════════
    THEME — MODE
 ══════════════════════════════════════════ */
-const savedTheme = localStorage.getItem('qTheme') || 'dark';
+const savedTheme = store.get('qTheme') || 'dark';
 document.documentElement.dataset.theme = savedTheme;
 
-document.querySelectorAll('[data-theme]').forEach(btn => {
+document.querySelectorAll('.sw-btn[data-theme]').forEach(btn => {
   btn.classList.toggle('on', btn.dataset.theme === savedTheme);
   btn.addEventListener('click', () => {
     const t = btn.dataset.theme;
     document.documentElement.dataset.theme = t;
-    document.querySelectorAll('[data-theme]').forEach(b => b.classList.toggle('on', b === btn));
-    localStorage.setItem('qTheme', t);
+    document.querySelectorAll('.sw-btn[data-theme]').forEach(b => b.classList.toggle('on', b === btn));
+    store.set('qTheme', t);
   });
 });
 
@@ -932,20 +1051,20 @@ document.querySelectorAll('[data-theme]').forEach(btn => {
    THEME — ACCENT
 ══════════════════════════════════════════ */
 const accentMap = { indigo: '', rose: 'rose', teal: 'teal', sand: 'sand' };
-const savedAc   = localStorage.getItem('qAc') || 'indigo';
+const savedAc   = store.get('qAc') || 'indigo';
 applyAccent(savedAc);
 
-document.querySelectorAll('[data-ac]').forEach(dot => {
+document.querySelectorAll('.ac-dot[data-ac]').forEach(dot => {
   dot.classList.toggle('on', dot.dataset.ac === savedAc);
   dot.addEventListener('click', () => {
     applyAccent(dot.dataset.ac);
-    document.querySelectorAll('[data-ac]').forEach(d => d.classList.toggle('on', d === dot));
-    localStorage.setItem('qAc', dot.dataset.ac);
+    document.querySelectorAll('.ac-dot[data-ac]').forEach(d => d.classList.toggle('on', d === dot));
+    store.set('qAc', dot.dataset.ac);
   });
 });
 
 function applyAccent(name) {
-  Object.values(accentMap).forEach(v => { if (v) document.documentElement.removeAttribute('data-ac'); });
+  document.documentElement.removeAttribute('data-ac');
   if (accentMap[name]) document.documentElement.setAttribute('data-ac', accentMap[name]);
 }
 
@@ -965,9 +1084,28 @@ function esc(s) {
 }
 
 /* ══════════════════════════════════════════
+   SCROLL PROGRESS
+══════════════════════════════════════════ */
+(function () {
+  const bar = document.getElementById('progress');
+  function upd() {
+    const h = document.documentElement.scrollHeight - window.innerHeight;
+    bar.style.transform = 'scaleX(' + (h > 0 ? Math.min(window.scrollY / h, 1) : 0) + ')';
+  }
+  window.addEventListener('scroll', upd, { passive: true });
+  window.addEventListener('resize', upd);
+  upd();
+})();
+
+/* ══════════════════════════════════════════
    INIT
 ══════════════════════════════════════════ */
 document.getElementById('yr').textContent = new Date().getFullYear();
+(function(){
+  const c = store.get(CACHE_KEY);
+  if (!c) return;
+  try { applyQuotes(parseQuotes(c)); document.getElementById('syncLabel').textContent = 'showing saved copy'; } catch(e){}
+})();
 loadQuotes();
 setInterval(() => loadQuotes(true), 180_000);
 </script>
